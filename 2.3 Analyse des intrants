@@ -1,0 +1,317 @@
+#2.3 Analyse des intrants
+
+#13.Visualiser la diversité des cultures dans les différentes régions. Quelles sont les zones les plus
+#spécialisées? Quelle relation avec le rendement de l’arachide? Donner une explication aux
+#résultats obtenus.
+
+#Calculer la moyenne de l'indice de diversité par région 
+indice_cultures_par_region = base_produc_final.groupby('regions')['indice_diversite'].mean().reset_index()
+
+#Créer une visualisation
+plt.figure(figsize=(10, 6))
+plt.bar(indice_cultures_par_region['regions'], indice_cultures_par_region['indice_diversite'], color='skyblue')
+plt.title('Diversité des cultures dans chaque région')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.show()
+
+#Quelles sont les zones les plus spécialisées?
+print("Les régions les plus spécialisés sont Sédhiou,Tambacounda,Thiès et Ziguinchor")
+
+# Quelle relation avec le rendement de l’arachide?
+##Calculer le rendement de l'arachide pour chaque région
+
+#Calculer la somme de la production d'arachide pour chaque région
+production_totale_arachide_par_region = base_produc_final[base_produc_final['culture_label'] == 'Arachide'].groupby('regions')['production_kg'].sum()
+
+# Calculer la somme des superficies de culture d'arachide pour chaque région
+superficie_totale_arachide_par_region = base_produc_final[base_produc_final['culture_label'] == 'Arachide'].groupby('regions')['superficie'].sum()
+
+#  Calculer le rendement de l'arachide pour chaque région
+rendement_arachide_par_region = (production_totale_arachide_par_region / superficie_totale_arachide_par_region).reset_index(name='rendement_arachide')# Étape 3 : Fusionner les données sur le rendement de l'arachide et la diversité des cultures pour chaque région
+
+donnees_fusionnees = pd.merge(rendement_arachide_par_region, indice_cultures_par_region, on='regions')
+
+# Visualiser la relation entre le rendement de l'arachide et la diversité des cultures
+plt.figure(figsize=(10, 6))
+plt.scatter(donnees_fusionnees['rendement_arachide'], donnees_fusionnees['indice_diversite'], color='skyblue')
+plt.xlabel='Diversité des cultures par région'
+plt.ylabel='Rendement moyen de l\'arachide par région'
+
+print("Pour les régions avec un rendement_arachide élevé comme Shédhiou et ziguinchor,\
+      on constate que l'indice de diversité est plus faible. Cela pourait s'expliquer par\
+      le fait la spécialisation de ces régions dans l'arachide a conduit à la longue à un \
+      rendement plus élevé pour cette culture")
+
+#14. Comparer l’utilisation de l’engrais entre l’arachide et le mil.
+
+#Importer la base engrais final long
+base_engrais = pd.read_excel("base_engrais.xlsx")
+
+# Filtrer les données pour ne conserver que l'arachide et le mil
+donnees_arachide_mil = base_engrais[base_engrais['culture_label'].isin(['Arachide', 'Mil'])]
+
+# Calculer la quantité totale d'engrais utilisée pour chaque culture
+quantite_engrais_par_culture = donnees_arachide_mil.groupby('culture_label')['qte_kg'].sum()
+
+# Calculer la superficie totale pour chaque culture
+donnees_arachide_mil_sup = base_produc_final[base_produc_final['culture_label'].isin(['Arachide', 'Mil'])]
+superficie_par_culture = donnees_arachide_mil_sup.groupby('culture_label')['superficie'].sum()
+
+# Calculer la quantité d'engrais par unité de surface pour chaque culture
+engrais_par_surface = quantite_engrais_par_culture / superficie_par_culture
+
+#Comparer cet indicateur pour la région de Kaolack
+
+# Filtrer base_produc_final pour ne conserver que les entrées de le departement de Kaolack
+donnees_kaolack = base_produc_final[base_produc_final['departements'] == 'Kaolack']
+
+# Filtrer base_engrais pour ne conserver que les entrées correspondant à l'arachide et au mil
+engrais_arachide_mil = base_engrais[base_engrais['culture_label'].isin(['Arachide', 'Mil'])]
+
+# Filtrer les données pour ne conserver que l'arachide et le mil dans la région de Kaolack
+donnees_arachide_mil_kaolack = donnees_kaolack[donnees_kaolack['culture_label'].isin(['Arachide', 'Mil'])]
+
+# Calculer la superficie totale pour chaque culture dans la région de Kaolack
+superficie_par_culture_kaolack = donnees_arachide_mil_kaolack.groupby('culture_label')['superficie'].sum()
+
+# Calculer la quantité totale d'engrais utilisée pour chaque culture
+quantite_par_culture_kaolack = engrais_arachide_mil.groupby('culture_label')['qte_kg'].sum()
+
+# Calculer la quantité d'engrais par unité de surface pour chaque culture dans la région de Kaolack
+engrais_par_surface_kaolack = quantite_par_culture_kaolack / superficie_par_culture_kaolack
+# Affichage des résultats
+print(engrais_par_surface_kaolack)
+
+# Tester statistiquement, pour l’arachide, la corrélation entre l’intensité d’utilisation de l’engrais et le rendement à l’hectare
+
+# Fusionner les colonnes qte_kg de base_engrais et superficie de base_produc_final
+engrais_superficie_merge = base_engrais[['id_men', 'qte_kg']].merge(base_produc_final[['id_men', 'superficie', 'culture_label']], on='id_men', how='inner')
+
+# Filtrer les données pour ne conserver que les lignes correspondant à la culture de l'arachide
+engrais_arachide_superficie = engrais_superficie_merge[engrais_superficie_merge['culture_label'] == 'Arachide']
+
+# Calculer la quantité d'engrais par hectare pour l'arachide
+qte_engrais_arachide = engrais_arachide_superficie['qte_kg'] / engrais_arachide_superficie['superficie']
+
+# Renommer la colonne
+qte_engrais_arachide = qte_engrais_arachide.rename('engrais(kg/ha)')
+
+#  Sélectionner uniquement les données relatives à l'arachide dans la base base_produc_final
+donnees_arachide = base_produc_final[base_produc_final['culture_label'] == 'Arachide']
+
+# Calculer le rendement à l'hectare en divisant les quantités produites par les superficies
+donnees_arachide['rend_hec'] = donnees_arachide['production_kg'] / donnees_arachide['superficie']
+
+# Renommer la colonne
+donnees_arachide = donnees_arachide.rename(columns={'rend_hec': 'rendement_hectare_arachide'})
+
+# Fusionner les données en utilisant la clé d'index de Python
+donnees_merge = donnees_arachide.merge(qte_engrais_arachide, how='inner', left_index=True, right_index=True)
+
+from scipy.stats import pearsonr
+
+# Extraire les données des colonnes utilisation_engrais et rendement_hectare_arachide
+utilisation_engrais = donnees_merge['engrais(kg/ha)']
+rendement_hectare_arachide = donnees_merge['rendement_hectare_arachide']
+
+# Effectuer le test de corrélation de Pearson
+corr_pearson, p_value_pearson = pearsonr(utilisation_engrais, rendement_hectare_arachide)
+
+# Afficher les résultats
+print("Corrélation de Pearson entre la quantité d'engrais utilisée et le rendement à l'hectare pour l'arachide:", corr_pearson)
+print("P-valeur associée au test de corrélation de Pearson:", p_value_pearson)
+
+#15. Visualiser la provenance des semences pour chaque spéculation. Commenter également les résultats par zone.
+
+#Exporter la base des semances
+base_semences=pd.read_excel("base_semences.xlsx")
+
+import matplotlib.pyplot as plt
+
+# Compter les occurrences de chaque modalité du fournisseur1 pour chaque culture
+provenance_fournisseur1 = base_semences.groupby(['culture_label', 'fournisseur1']).size().unstack(fill_value=0)
+
+# Afficher le graphique à barres
+provenance_fournisseur1.plot(kind='bar', stacked=True, figsize=(12, 8))
+plt.xlabel('Culture')
+plt.ylabel('Nombre de semences')
+plt.title('Provenance des semences pour chaque culture (Fournisseur 1)')
+plt.legend(title='Fournisseur 1')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.show()
+
+# Compter les occurrences de chaque modalité du fournisseur2 pour chaque culture
+provenance_fournisseur2 = base_semences.groupby(['culture_label', 'fournisseur2']).size().unstack(fill_value=0)
+
+# Afficher le graphique à barres
+provenance_fournisseur2.plot(kind='bar', stacked=True, figsize=(12, 8))
+plt.xlabel('Culture')
+plt.ylabel('Nombre de semences')
+plt.title('Provenance des semences pour chaque culture (Fournisseur 2)')
+plt.legend(title='Fournisseur 2')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.show()
+
+# Compter les occurrences de chaque modalité du fournisseur_other pour chaque culture
+provenance_fournisseur_other = base_semences.groupby(['culture_label', 'fournisseurs_other']).size().unstack(fill_value=0)
+
+# Afficher le graphique à barres
+provenance_fournisseur_other.plot(kind='bar', stacked=True, figsize=(12, 8))
+plt.xlabel('Culture')
+plt.ylabel('Nombre de semences')
+plt.title('Provenance des semences pour chaque culture (Autres fournisseurs)')
+plt.legend(title='Autres fournisseurs')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.show()
+
+
+#Répartition en zone
+base_semences['zone'] = 'Centre'
+base_semences.loc[base_semences['regions'].isin(['Fatick', 'Kaolack', 'Louga', 'Diourbel',"Kaffrine"]), 'zone'] = 'Centre'
+base_semences.loc[base_semences['regions'] == 'Saint-Louis', 'zone'] = 'Nord'
+base_semences.loc[base_semences['regions'].isin(['Dakar', 'Thiès']), 'zone'] = 'Ouest'
+base_semences.loc[base_semences['regions'].isin(['Sédhiou', 'Kolda', 'Tambacounda', 'Kédougou']), 'zone'] = 'Sud'
+base_semences.loc[base_semences['regions'].isin(['Ziguinchor', 'Matam']), 'zone'] = 'Est'
+
+# Grouper les données par zone et calculer la somme des quantités de semences utilisées pour chaque zone
+quantites_semences_par_zone = base_semences.groupby('zone')['qte_kg'].sum()
+# Afficher les quantités de semences par zone
+print(quantites_semences_par_zone)
+print("Plus de la moitié des semences 55,7% provient du centre")
+
+
+#16.Visualiser les rendements d’arachide par source de provenance des semences. L’utilisation de
+#semences certifiées implique-t-elle l’atteinte de meilleurs rendements? Commenter également
+#les résultats par zone
+
+# Filtrer les données pour ne conserver que celles relatives à la culture de l'arachide
+base_produc_arachide = base_produc_final[base_produc_final['culture_label'] == 'Arachide']
+base_semences_arachide = base_semences[base_semences['culture_label'] == 'Arachide']
+# Fusionner les deux bases de données en utilisant la clé "id_men"
+fusion_arachide = base_produc_arachide.merge(base_semences_arachide[['id_men', 'fournisseur1', 'fournisseur2', 'fournisseur3', 'fournisseurs_other']], on='id_men', how='inner')
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(12, 8))
+
+# Fournisseur 1
+plt.subplot(2, 2, 1)
+sns.scatterplot(x='rendement', y='fournisseur1', data=fusion_arachide)
+plt.xlabel('Rendement d\'arachide')
+plt.ylabel('Source de provenance des semences')
+plt.title('Fournisseur 1')
+
+# Fournisseur 2
+plt.subplot(2, 2, 2)
+sns.scatterplot(x='rendement', y='fournisseur2', data=fusion_arachide)
+plt.xlabel('Rendement d\'arachide')
+plt.ylabel('Source de provenance des semences')
+plt.title('Fournisseur 2')
+
+# Fournisseur Other
+plt.subplot(2, 2, 4)
+sns.scatterplot(x='rendement', y='fournisseurs_other', data=fusion_arachide)
+plt.xlabel('Rendement d\'arachide')
+plt.ylabel('Source de provenance des semences')
+plt.title('Autres fournisseurs')
+
+plt.tight_layout()
+plt.show()
+print("Les rendements les plus élevés sont obtenus par les semences provenant du marché local et du gouvernement. ")
+
+# L’utilisation de semences certifiées implique-t-elle l’atteinte de meilleurs rendements
+
+#Creer une base de fusion pour visualiser les rendement par type de semence
+fusion_arachide_semences = base_produc_arachide.merge(base_semences_arachide[['id_men', 'types_semences']], on='id_men', how='inner')
+
+# Sélectionner les données pertinentes
+data_certifiees = fusion_arachide_semences[fusion_arachide_semences['types_semences'] == 'certifiees']
+data_non_certifiees = fusion_arachide_semences[fusion_arachide_semences['types_semences'] != 'certifiees']
+
+# Créer le scatter plot
+plt.figure(figsize=(10, 6))
+plt.scatter(data_certifiees['types_semences'], data_certifiees['rendement'], color='blue', label='Semences certifiées')
+plt.scatter(data_non_certifiees['types_semences'], data_non_certifiees['rendement'], color='red', label='Semences non certifiées')
+plt.xlabel('Types de semences')
+plt.ylabel('Rendement')
+plt.title('Relation entre l\'utilisation de semences certifiées et les rendements')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Filtrer les données uniquement pour l'Arachide
+arachide_data = base_produc_final[base_produc_final['culture_label'] == 'Arachide']
+
+# Créer une nouvelle colonne 'zone' dans arachide_data
+arachide_data['zone'] = 'N/A'
+
+# Attribuer une zone à chaque enregistrement en fonction de la région
+arachide_data.loc[arachide_data['regions'].isin(['Fatick', 'Kaolack', 'Louga', 'Diourbel','Kaffrine']), 'zone'] = 'Centre'
+arachide_data.loc[arachide_data['regions'] == 'Saint-Louis', 'zone'] = 'Nord'
+arachide_data.loc[arachide_data['regions'].isin(['Dakar', 'Thiès']), 'zone'] = 'Ouest'
+arachide_data.loc[arachide_data['regions'].isin(['Sédhiou', 'Kolda', 'Tambacounda', 'Kédougou']), 'zone'] = 'Sud'
+arachide_data.loc[arachide_data['regions'].isin(['Ziguinchor', 'Matam']), 'zone'] = 'Est'
+
+# Grouper les données par zone et calculer la somme de la production et de la superficie
+rendements_par_zone = arachide_data.groupby('zone').agg({'production_kg': 'sum', 'superficie': 'sum'})
+
+# Calculer le rendement de l'arachide par zone
+rendements_par_zone['rendement'] = rendements_par_zone['production_kg'] / rendements_par_zone['superficie']
+
+#17. Analyser les déterminants du rendement d’arachide par une régression linéaire où les variables
+#explicatives sont la diversit´e culturale, l’utilisation de l’engrais et l’utilisation des semences certifi´ees.
+
+#Création de la base de fusion appropriée:
+fusion_arachide_regression = base_produc_arachide.merge(base_semences_arachide[['id_men', 'types_semences' ,'qte_kg']], on='id_men', how='inner')
+
+#Création d'une variable quantité engrais utilisée par surface:
+fusion_arachide_regression["utilisation_engrais(kg/ha)"]=fusion_arachide_regression["qte_kg"]/fusion_arachide_regression["superficie"]
+
+#Fusionner avec la base de l'indice de diversité
+fusion_arachide_regression = pd.merge(fusion_arachide_regression, indice_diversite, on='id_men', how='inner')
+
+import statsmodels.api as sm
+
+# Sélection des variables explicatives et de la variable cible
+X = fusion_arachide_regression[['indice_diversite', 'utilisation_engrais(kg/ha)', 'types_semences']]
+y = fusion_arachide_regression['rendement']
+
+# Ajout d'une colonne pour les semences certifiées (0 pour non certifiées, 1 pour certifiées)
+X['semences_certifiees'] = (X['types_semences'] == 'semences certifiées').astype(int)
+
+# Suppression de la colonne types_semences
+X.drop(columns=['types_semences'], inplace=True)
+
+# Supprimer les lignes avec des valeurs manquantes ou infinies
+X_clean = X.dropna()
+
+# Ajouter une constante
+X_clean = sm.add_constant(X_clean)
+
+# Estimation du modèle de régression linéaire avec les données nettoyées
+model = sm.OLS(y[X_clean.index], X_clean).fit()
+
+# Affichage des résultats du modèle
+print(model.summary())
+
+#Nous reprenons la regression en ajoutant la variable part_arachide qui représente la part
+# de la superficie de l'arachide cultivée dans le total  
+
+# Sélectionner les variables explicatives et la variable cible
+X = fusion_arachide_regression[['indice_diversite', 'utilisation_engrais(kg/ha)', 'types_semences', 'part_arachide']]
+y = fusion_arachide_regression['rendement']
+X['semences_certifiees'] = (X['types_semences'] == 'semences certifiées').astype(int)
+
+# Ajouter une constante à la matrice de conception
+X = sm.add_constant(X)
+
+# Estimation du modèle de régression linéaire
+model = sm.OLS(y, X).fit()
+
+# Affichage des résultats du modèle
+print(model.summary())
