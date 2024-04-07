@@ -1,0 +1,78 @@
+################ ECOLE NATIONALE DE LA STATISTIQUE ET DE L'ANALYSE ECONOMIQUE ##############
+
+
+#################################### CLASSE:ISEP2 ##########################################
+
+
+############################## TP3 DE STATISTIQUE AGRICOLE ################################# 
+
+#Réalisé par:                                                           #Supervisé par:
+#Malick SENE
+#Hildegarde Edima BIYENDA                                             Mr Mouhamed Rassoul SY
+
+
+import pandas as pd
+
+#2.1 Préparation et nettoyage des données
+
+#1. importer la base 5_production_final
+base_produc=pd.read_excel("5 production final.xlsx")
+
+#2. Vérifier l’existence de doublons
+print(base_produc.duplicated('id_men').sum())
+
+#3. Quelles sont les céréales cultivées?
+print(base_produc['culture_label'].value_counts())
+print("Les céreales cutivées sont:le mil, le maïs, le riz et le sorgho")
+
+#4. Y a-t-il des superficies nulles? des productions aberrantes?
+
+#Superficies nulles
+print((base_produc['superficie']==0).sum())
+
+#5. Imputer ces variables si nécessaire et documenter la méthode d’imputation
+#Les valeurs abbérantes seront déterminée à partir des rendements par culture.Ce qui permettra
+#de deternimer les productions abbérantes et de les imputer par winsorisation
+
+#Importer la bilbliothèque iqr pour appliquer la méthode des IQR
+from scipy.stats import iqr
+
+# Calculer le rendement par ménage
+base_produc['rendement'] = base_produc['production_kg'] / base_produc['superficie']
+
+# Regrouper les rendements par culture
+rendement_par_culture = base_produc.groupby('culture_label')['rendement']
+
+# Déterminer les limites pour les valeurs aberrantes avec la méthode des IQR
+def outliers_limits(rendements):
+    q1 = rendements.quantile(0.25)
+    q3 = rendements.quantile(0.75)
+    iqr_value = iqr(rendements)
+    lower_limit = q1 - 1.5 * iqr_value
+    upper_limit = q3 + 1.5 * iqr_value
+    return q1, q3
+
+# Imputer les valeurs aberrantes par winsorisation  
+def impute_outliers(row):
+    culture = row['culture_label']
+    rendement = row['rendement']
+    lower_limit, upper_limit = limits_by_culture[culture]
+    if rendement < lower_limit:
+        return lower_limit * row['superficie']
+    elif rendement > upper_limit:
+        return upper_limit * row['superficie']
+    else:
+        return row['production_kg']
+
+# Calculer les limites pour les valeurs aberrantes par culture
+limits_by_culture = rendement_par_culture.apply(outliers_limits).to_dict()
+
+# Imputer les valeurs aberrantes dans la colonne production_kg
+base_produc['production_kg'] = base_produc.apply(impute_outliers, axis=1)
+
+#6. Agréger les superficies et production par ménage et par culture
+agregation_par_menage_culture = base_produc.groupby(['id_men', 'culture_label']).agg({'superficie': 'sum', 'production_kg': 'sum'}).reset_index()
+
+#7. enregistrer la base ainsi apurée en lui donnant un nom distinct
+base_produc_final=base_produc
+base_produc_final.to_excel("base_production.xlsx")
