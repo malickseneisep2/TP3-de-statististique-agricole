@@ -1,0 +1,154 @@
+
+#2.4 Analyse des intrants (bis): ici nous choisissons le mil comme spéculation et nous
+#reprenons les questions 13 ,16 et 18
+
+#Question 13
+
+##Calculer le rendement de l'arachide pour chaque région
+
+#Calculer la somme de la production de mil pour chaque région
+production_totale_arachide_par_region_mil = base_produc_final[base_produc_final['culture_label'] == 'Mil'].groupby('regions')['production_kg'].sum()
+
+# Calculer la somme des superficies de culture de mil pour chaque région
+production_totale_arachide_par_region_mil = base_produc_final[base_produc_final['culture_label'] == 'Mil'].groupby('regions')['superficie'].sum()
+
+#  Calculer le rendement de le mil pour chaque région
+rendement_arachide_par_region_mil = (production_totale_arachide_par_region_mil / production_totale_arachide_par_region_mil).reset_index(name='rendement_arachide')# Étape 3 : Fusionner les données sur le rendement de l'arachide et la diversité des cultures pour chaque région
+
+donnees_fusionnees_mil = pd.merge(rendement_arachide_par_region_mil, indice_cultures_par_region, on='regions')
+
+# Étape 4 : Visualiser la relation entre le rendement de l'arachide et la diversité des cultures
+plt.figure(figsize=(10, 6))
+plt.scatter(donnees_fusionnees['rendement_arachide'], donnees_fusionnees['indice_diversite'], color='skyblue')
+plt.xlabel='Diversité des cultures par région'
+plt.ylabel='Rendement moyen de l\'arachide par région'
+
+print("Comme pour l'arachide , on note que les rendements les plus élevés sont obtenus \
+      avec les régions présentant un indice de diversité faible. Cela pourait s'expliquer par\
+      le fait la spécialisation de ces régions dans l'arachide a conduit à la longue à un \
+      rendement plus élevé pour cette culture")
+
+#Quetion 16
+
+# Filtrer les données pour ne conserver que celles relatives à la culture de l'Mil
+base_produc_mil = base_produc_final[base_produc_final['culture_label'] == 'Mil']
+base_semences_mil = base_semences[base_semences['culture_label'] == 'Mil']
+# Fusionner les deux bases de données en utilisant la clé "id_men"
+fusion_mil = base_produc_mil.merge(base_semences_mil[['id_men', 'fournisseur1', 'fournisseur2', 'fournisseur3', 'fournisseurs_other']], on='id_men', how='inner')
+
+plt.figure(figsize=(12, 8))
+
+# Fournisseur 1
+plt.subplot(2, 2, 1)
+sns.scatterplot(x='rendement', y='fournisseur1', data=fusion_mil)
+plt.xlabel('Rendement d\'arachide')
+plt.ylabel('Source de provenance des semences')
+plt.title('Fournisseur 1')
+
+# Fournisseur 2
+plt.subplot(2, 2, 2)
+sns.scatterplot(x='rendement', y='fournisseur2', data=fusion_mil)
+plt.xlabel('Rendement d\'arachide')
+plt.ylabel('Source de provenance des semences')
+plt.title('Fournisseur 2')
+
+
+# Fournisseur Other
+plt.subplot(2, 2, 4)
+sns.scatterplot(x='rendement', y='fournisseurs_other', data=fusion_mil)
+plt.xlabel('Rendement d\'arachide')
+plt.ylabel('Source de provenance des semences')
+plt.title('Autres fournisseurs')
+
+plt.tight_layout()
+plt.show()
+print("Les rendements les plus élevés sont obtenus par les semences provenant du marché local et du gouvernement et des produteurs. ")
+
+# L’utilisation de semences certifi´ees implique-t-elle l’atteinte de meilleurs rendements
+
+#Creer une base de fusion pour visualiser les rendement par type de semence
+fusion_mil_semences = base_produc_mil.merge(base_semences_mil[['id_men', 'types_semences']], on='id_men', how='inner')
+
+# Sélectionner les données pertinentes
+data_certifiees_mil = fusion_mil_semences[fusion_mil_semences['types_semences'] == 'certifiees']
+data_non_certifiees_mil = fusion_mil_semences[fusion_mil_semences['types_semences'] != 'certifiees']
+
+# Créer le scatter plot
+plt.figure(figsize=(10, 6))
+plt.scatter(data_certifiees_mil['types_semences'], data_certifiees_mil['rendement'], color='blue', label='Semences certifiées')
+plt.scatter(data_non_certifiees_mil['types_semences'], data_non_certifiees_mil['rendement'], color='red', label='Semences non certifiées')
+plt.xlabel('Types de semences')
+plt.ylabel('Rendement')
+plt.title("Relation entre l'utilisation de semences certifiées et les rendements")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+print("Le scatter plot montre que les rendements les plus élevés ne sont pas obtenu avec les semences certifiés mais \
+      plûtot avec ceux constitués à partir de stock")
+
+# Filtrer les données uniquement pour le Mil
+mil_data = base_produc_final[base_produc_final['culture_label'] == 'Mil']
+
+# Créer une nouvelle colonne 'zone' dans mil_data
+mil_data['zone'] = 'N/A'
+
+# Attribuer une zone à chaque enregistrement en fonction de la région
+mil_data.loc[mil_data['regions'].isin(['Fatick', 'Kaolack', 'Louga', 'Diourbel','Kaffrine']), 'zone'] = 'Centre'
+mil_data.loc[mil_data['regions'] == 'Saint-Louis', 'zone'] = 'Nord'
+mil_data.loc[mil_data['regions'].isin(['Dakar', 'Thiès']), 'zone'] = 'Ouest'
+mil_data.loc[mil_data['regions'].isin(['Sédhiou', 'Kolda', 'Tambacounda', 'Kédougou']), 'zone'] = 'Sud'
+mil_data.loc[mil_data['regions'].isin(['Ziguinchor', 'Matam']), 'zone'] = 'Est'
+
+# Grouper les données par zone et calculer la somme de la production et de la superficie
+rendements_par_zone_mil = mil_data.groupby('zone').agg({'production_kg': 'sum', 'superficie': 'sum'})
+
+# Calculer le rendement du mil par zone
+rendements_par_zone_mil['rendement'] = rendements_par_zone['production_kg'] / rendements_par_zone['superficie']
+
+print("Le rendement du mil est plus élevé dans la zone nord")
+
+#Question17
+
+# Création de la base de fusion appropriée pour le Mil
+fusion_mil_regression = base_produc_mil.merge(base_semences_mil[['id_men', 'types_semences', 'qte_kg']], on='id_men', how='inner')
+
+# Création d'une variable pour la quantité d'engrais utilisée par surface
+fusion_mil_regression["utilisation_engrais(kg/ha)"] = fusion_mil_regression["qte_kg"] / fusion_mil_regression["superficie"]
+
+# Fusionner avec la base de l'indice de diversité
+fusion_mil_regression = pd.merge(fusion_mil_regression, indice_diversite, on='id_men', how='inner')
+
+import statsmodels.api as sm
+
+# Sélection des variables explicatives et de la variable cible
+X = fusion_mil_regression[['indice_diversite', 'utilisation_engrais(kg/ha)', 'types_semences']]
+y = fusion_mil_regression['rendement']
+
+# Ajout d'une colonne pour les semences certifiées (0 pour non certifiées, 1 pour certifiées)
+X['semences_certifiees'] = (X['types_semences'] == 'semences certifiées').astype(int)
+
+# Suppression de la colonne types_semences
+X.drop(columns=['types_semences'], inplace=True)
+
+# Supprimer les lignes avec des valeurs manquantes ou infinies
+X_clean = X.dropna()
+
+# Ajouter une constante
+X_clean = sm.add_constant(X_clean)
+
+# Estimation du modèle de régression linéaire avec les données nettoyées
+model_mil = sm.OLS(y[X_clean.index], X_clean).fit()
+
+# Affichage des résultats du modèle
+print(model_mil.summary())
+
+
+
+
+
+
+
+
+
+
